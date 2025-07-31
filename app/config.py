@@ -20,20 +20,29 @@ class Config:
 
     def _load_environment(self):
         """Load environment variables with proper fallbacks."""
-        # Try to load from .env file first (for local development)
-        env_file = Path(".env")
-        if env_file.exists():
-            load_dotenv(env_file)
+        # Determine the current environment
+        current_env = os.getenv("ENVIRONMENT", "development").lower()
+        
+        # Load environment-specific configuration
+        if current_env == "production":
+            # In production, rely on system environment variables
+            print("Running in production mode - using system environment variables")
         else:
-            # Fallback to .sample_env for development
-            sample_env_file = Path(".sample_env")
-            if sample_env_file.exists():
-                load_dotenv(sample_env_file)
-            else:
-                # In production, rely on system environment variables
-                print(
-                    "No .env or .sample_env file found. Using system environment variables."
-                )
+            # In development, try to load from environment files
+            env_files = [
+                Path(".sample_env")  # Sample configuration
+            ]
+            
+            loaded = False
+            for env_file in env_files:
+                if env_file.exists():
+                    print(f"Loading environment from {env_file}")
+                    load_dotenv(env_file, override=True)
+                    loaded = True
+                    break
+            
+            if not loaded:
+                print("No environment files found. Using system environment variables.")
 
     def _validate_config(self):
         """Validate that required configuration is present."""
