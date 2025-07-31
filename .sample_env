@@ -1,0 +1,6 @@
+# PostgreSQL Configuration
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_PASSWORD=mysecretpassword
+POSTGRES_USER=postgres
+POSTGRES_DB=crafty
