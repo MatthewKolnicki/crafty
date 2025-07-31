@@ -5,3 +5,4 @@ pydantic
 psycopg[binary]
 faker
 flatdict
+python-dotenv

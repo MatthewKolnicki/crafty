@@ -5,19 +5,22 @@ Simple utilities for connecting to PostgreSQL database for running
 scripts and queries using psycopg for raw SQL.
 """
 
-import os
 import psycopg
 import pandas as pd
 from psycopg.rows import dict_row
+from psycopg import OperationalError
+from app.config import config
 
 
 class Database:
     def __init__(self):
-        self.host = os.getenv("POSTGRES_HOST", "localhost")
-        self.port = os.getenv("POSTGRES_PORT", "5432")
-        self.user = os.getenv("POSTGRES_USER", "postgres")
-        self.password = os.getenv("POSTGRES_PASSWORD")
-        self.database = os.getenv("POSTGRES_DB", "crafty")
+        # Use the centralized configuration
+        db_config = config.database_config
+        self.host = db_config["host"]
+        self.port = db_config["port"]
+        self.user = db_config["user"]
+        self.password = db_config["password"]
+        self.database = db_config["database"]
         self._connection = None
 
     @property
@@ -26,11 +29,14 @@ class Database:
         return f"host={self.host} port={self.port} user={self.user} password={self.password} dbname={self.database}"
 
     def get_connection(self):
-        """Get psycopg connection."""
+        """Get psycopg connection with proper error handling."""
         if self._connection is None or self._connection.closed:
-            self._connection = psycopg.connect(
-                self.connection_string, row_factory=dict_row
-            )
+            try:
+                self._connection = psycopg.connect(
+                    self.connection_string, row_factory=dict_row
+                )
+            except OperationalError as e:
+                raise ConnectionError(f"Failed to connect to database: {e}")
         return self._connection
 
     def close_connection(self):
@@ -47,6 +53,9 @@ class Database:
                 cursor.execute(query, params or {})
                 result = cursor.fetchone()
                 return result if result else {}
+        except Exception as e:
+            print(f"Query execution failed: {e}")
+            raise
         finally:
             conn.close()
 
@@ -60,6 +69,7 @@ class Database:
                 return True
         except Exception as e:
             print(f"Insert failed: {e}")
+            conn.rollback()
             return False
         finally:
             conn.close()
@@ -71,11 +81,14 @@ class Database:
             with conn.cursor() as cursor:
                 cursor.execute(query, params or {})
                 return pd.DataFrame(cursor.fetchall())
+        except Exception as e:
+            print(f"DataFrame query failed: {e}")
+            raise
         finally:
             conn.close()
 
     def test_connection(self) -> bool:
-        """Test database connection."""
+        """Test database connection with proper error handling."""
         try:
             conn = self.get_connection()
             with conn.cursor() as cursor:
